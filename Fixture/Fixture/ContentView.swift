@@ -1,8 +1,8 @@
 //
 //  ContentView.swift
-//  Test
+//  Fixture
 //
-//  Created by Pedro Piñera Buendía on 04.02.25.
+//  Created by Pedro Piñera Buendía on 05.02.25.
 //
 
 import SwiftUI

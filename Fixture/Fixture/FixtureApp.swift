@@ -1,14 +1,14 @@
 //
-//  TestApp.swift
-//  Test
+//  FixtureApp.swift
+//  Fixture
 //
-//  Created by Pedro Piñera Buendía on 04.02.25.
+//  Created by Pedro Piñera Buendía on 05.02.25.
 //
 
 import SwiftUI
 
 @main
-struct TestApp: App {
+struct FixtureApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
