@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -19,6 +18,7 @@ import (
 type RPCPacket struct {
 	Channel uint64      `json:"channel"` // The RPC channel being communicated on
 	Body    interface{} `json:"body"`    // The content of the message
+	Payload string      `json:"payload"`
 }
 
 func main() {
@@ -68,12 +68,44 @@ func main() {
 	}()
 
 	// Handle XCBBuildService -> Xcode messages (stdout & stderr)
-	go forwardOutput(stdoutPipe, os.Stdout, logFile, "XCBBuildService STDOUT")
-	go forwardOutput(stderrPipe, os.Stderr, logFile, "XCBBuildService STDERR")
+	go decodeAndForwardStdout(stdoutPipe, os.Stdout, logFile)
+	go decodeAndForwardStdout(stderrPipe, os.Stderr, logFile)
 
-	// Wait for XCBBuildService to exit
-	if err := cmd.Wait(); err != nil {
-		logToFile(logFile, fmt.Sprintf("XCBBuildService exited with error: %v", err))
+	// Wait for the process to finish and handle termination properly
+	go func() {
+		// Wait for the underlying process to exit
+		err := cmd.Wait()
+		if err != nil {
+			logToFile(logFile, fmt.Sprintf("XCBBuildService exited with error: %v", err))
+		}
+		close(signalChan) // Close the signal channel to prevent further signals after process exits
+	}()
+
+	// Block main goroutine until the process finishes
+	<-signalChan
+	log.Println("Main process is terminating")
+}
+
+func decodeAndForwardStdout(input io.Reader, output io.Writer, logFile *os.File) {
+	for {
+		packet, rawData, err := readRPCPacket(input)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			logToFile(logFile, fmt.Sprintf("Error reading RPCPacket from stdout: %v", err))
+			continue
+		}
+
+		// Log decoded packet with full metadata
+		logDecodedPacket(logFile, packet)
+
+		// Forward raw data to Xcode (or wherever necessary)
+		_, err = output.Write(rawData)
+		if err != nil {
+			logToFile(logFile, fmt.Sprintf("Error forwarding data from stdout: %v", err))
+			break
+		}
 	}
 }
 
@@ -130,23 +162,14 @@ func readRPCPacket(reader io.Reader) (*RPCPacket, []byte, error) {
 	return &RPCPacket{
 		Channel: channel,
 		Body:    body,
+		Payload: string(payload),
 	}, append(header, payload...), nil
-}
-
-// forwardOutput forwards output from XCBBuildService and logs it
-func forwardOutput(input io.Reader, output io.Writer, logFile *os.File, prefix string) {
-	tee := io.TeeReader(input, output)
-	buf := new(bytes.Buffer)
-	_, _ = io.Copy(buf, tee)
-
-	// Log raw output
-	logToFile(logFile, fmt.Sprintf("[%s] %s", prefix, buf.String()))
 }
 
 // logDecodedPacket writes a decoded RPCPacket with metadata
 func logDecodedPacket(logFile *os.File, packet *RPCPacket) {
 	packetJSON, _ := json.MarshalIndent(packet, "", "  ") // Pretty-print JSON
-	logToFile(logFile, fmt.Sprintf("Decoded RPCPacket: %s", packetJSON))
+	logToFile(logFile, string(packetJSON))                // Convert byte slice to string directly
 }
 
 // logToFile writes log messages safely
