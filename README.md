@@ -6,7 +6,7 @@ This is useful to debug issues with the build service.
 ## Usage
 
 1. Clone the repository: `git clone https://github.com/tuist/XCBLoggingBuildService`.
-2. Build the project: `swift buil`.
+2. Build the project: `swift build`.
 3. Use the service:
   - With **xcodebuild**:
     ```bash
