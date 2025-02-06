@@ -21,11 +21,6 @@ type RPCPacket struct {
 	Body    interface{} `json:"body"`    // The content of the message
 }
 
-// Add a method to implement the Stringer interface for debugging
-func (p RPCPacket) String() string {
-	return fmt.Sprintf("Channel: %d - Body: %v", p.Channel, p.Body)
-}
-
 func main() {
 	xcbuildServicePath := "/Applications/Xcode.app/Contents/SharedFrameworks/XCBuild.framework/PlugIns/XCBBuildService.bundle/Contents/MacOS/XCBBuildService"
 
@@ -129,13 +124,6 @@ func readRPCPacket(reader io.Reader) (*RPCPacket, []byte, error) {
 	err = msgpack.Unmarshal(payload, &body)
 	if err != nil {
 		return nil, nil, fmt.Errorf("MsgPack decode error: %v", err)
-	}
-
-	// Decode raw_message (if possible)
-	var rawDecoded interface{}
-	err = msgpack.Unmarshal(payload, &rawDecoded)
-	if err != nil {
-		rawDecoded = string(payload) // Fallback to string if decoding fails
 	}
 
 	// Return the fully decoded structure
