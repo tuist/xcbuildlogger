@@ -2,7 +2,6 @@ import Foundation
 import Dispatch
 import Darwin
 import MessagePack
-import SwiftyJSON
 
 struct RPCPacket {
     let channel: UInt64
@@ -10,10 +9,10 @@ struct RPCPacket {
 }
 
 let xcbuildServicePath = "/Applications/Xcode.app/Contents/SharedFrameworks/XCBuild.framework/PlugIns/XCBBuildService.bundle/Contents/MacOS/XCBBuildService"
-let logFilePath = "/tmp/xcode_xcbbuildservice.log"
+let logFilePath = "/tmp/XCBLoggingBuildService.log"
 
 @main
-struct xcodebuildlogging {
+struct XCBLoggingBuildService {
     static func main() async throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: xcbuildServicePath)
@@ -24,7 +23,7 @@ struct xcodebuildlogging {
         process.standardInput = stdinPipe
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
-        
+
         do {
             try process.run()
         } catch {
@@ -47,7 +46,7 @@ struct xcodebuildlogging {
         process.waitUntilExit()
         logToFile("XCBBuildService terminated")
     }
-    
+
     static func logToFile(_ message: String) {
         if let handle = FileHandle(forWritingAtPath: logFilePath) {
             handle.seekToEndOfFile()
@@ -59,21 +58,21 @@ struct xcodebuildlogging {
             try? (message + "\n").write(toFile: logFilePath, atomically: true, encoding: .utf8)
         }
     }
-    
+
     static func readRPCPacket(from handle: FileHandle) -> (RPCPacket?, Data?)? {
         let headerSize = 12
         guard let header = try? handle.read(upToCount: headerSize), header.count == headerSize else {
             return nil
         }
-        
+
         let channel = header.withUnsafeBytes { $0.load(as: UInt64.self) }
         let payloadSize = header.withUnsafeBytes { $0.load(fromByteOffset: 8, as: UInt32.self) }
-        
+
         guard let payloadData = try? handle.read(upToCount: Int(payloadSize)), payloadData.count == payloadSize else {
             return nil
         }
         let unpackedData = try! MessagePackValue.unpackAll(payloadData)
-        
+
         let packet = RPCPacket(channel: channel, payload: unpackedData)
         return (packet, header + payloadData)
     }
