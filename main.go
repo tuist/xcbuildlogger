@@ -10,15 +10,12 @@ import (
 	"os/exec"
 	"os/signal"
 	"syscall"
-
-	"github.com/vmihailenco/msgpack/v5"
 )
 
 // RPCPacket represents a decoded message
 type RPCPacket struct {
-	Channel uint64      `json:"channel"` // The RPC channel being communicated on
-	Body    interface{} `json:"body"`    // The content of the message
-	Payload string      `json:"payload"`
+	Channel uint64 `json:"channel"`
+	Payload string `json:"payload"`
 }
 
 func main() {
@@ -151,17 +148,9 @@ func readRPCPacket(reader io.Reader) (*RPCPacket, []byte, error) {
 		return nil, nil, err
 	}
 
-	// Decode body (MessagePack)
-	var body interface{}
-	err = msgpack.Unmarshal(payload, &body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("MsgPack decode error: %v", err)
-	}
-
 	// Return the fully decoded structure
 	return &RPCPacket{
 		Channel: channel,
-		Body:    body,
 		Payload: string(payload),
 	}, append(header, payload...), nil
 }
